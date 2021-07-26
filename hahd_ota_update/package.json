@@ -1,0 +1,21 @@
+{
+  "name": "visionUpdate",
+  "version": "1.0.0",
+  "description": "",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serverless-apigw-binary": "^0.4.4",
+    "serverless-domain-manager": "^5.1.0",
+    "serverless-pseudo-parameters": "^2.6.0"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "moment": "^2.29.1"
+  }
+}

@@ -1,0 +1,114 @@
+
+service: hahd-update
+
+plugins:
+  - serverless-offline  
+  - serverless-domain-manager
+  - serverless-pseudo-parameters
+  - serverless-apigw-binary
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  allowedHeaders:
+    - Accept
+    - Content-Type
+    - Content-Length
+    - Authorization
+    - X-Amz-Date
+    - X-Api-Key
+    - X-Amz-Security-Token
+    - X-Amz-User-Agent
+    - app_user_id
+    - app_user_name
+  domains:
+    prod: hahd.spxu.agnext.net
+  customDomain:
+      domainName: ${self:custom.domains.${self:custom.stage}}
+      stage: ${self:custom.stage}
+      certificateName: spxu.agnext.net
+      createRoute53Record: true
+  apigwBinary:
+    types:           #list of binary mime-types
+      - 'binary/octet-stream'
+      - 'application/x-tar'
+      - 'application/x-gzip'
+      - 'application/x-gtar'
+      - 'application/x-tgz'
+      - 'application/octet-stream'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: prod
+  region: us-east-1
+  memorySize: 128
+  timeout: 5
+  endpointType: regional
+  environment:
+    BUILD_NUMBER: 2
+    UPDATE_TABLE: ${self:service}-${self:provider.name}-Update
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action: 
+        - dynamodb:Query
+        - dynamodb:PutItem
+        - dynamodb:DeleteItem
+        - dynamodb:UpdateItem
+        - dynamodb:GetItem
+        - dynamodb:Scan
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:#{AWS::AccountId}:table/${self:provider.environment.UPDATE_TABLE}"
+      
+
+functions:
+  hahdUpdate:
+    handler: hahdUpdate.handler
+    description: GET /data
+    events:
+      - http:
+          path: update
+          method: get
+          request:
+            parameters:
+              querystrings:
+                file_name: true
+                device_id: true
+                ota_version: true
+          cors:
+            origin: '*'
+            headers: ${self:custom.allowedHeaders}
+
+
+
+resources:
+  Resources:
+    UpdateTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.UPDATE_TABLE}
+        AttributeDefinitions:  
+          - AttributeName: device_id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+          - AttributeName: current_version
+            AttributeType: N  
+        KeySchema:
+          - AttributeName: device_id
+            KeyType: HASH
+          - AttributeName: current_version
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        LocalSecondaryIndexes:
+          - IndexName: lsi_time
+            KeySchema:
+              - AttributeName: device_id
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        
